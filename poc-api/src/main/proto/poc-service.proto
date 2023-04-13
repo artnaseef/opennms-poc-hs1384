@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package opennms.poc.hs1384;
+option java_multiple_files = true;
+option java_package = "org.opennms.poc.hs1384.grpc";
+
+service TestService {
+  rpc request(TestRequest) returns (TestResponse) {}
+}
+
+message TestRequest {
+  string query = 1;
+}
+
+message TestResponse {
+  string response = 1;
+}
