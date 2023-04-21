@@ -27,7 +27,7 @@
  *
  */
 
-package org.opennms.poc.hs1384.client;
+package org.opennms.poc.hs1384.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -41,10 +41,15 @@ import org.springframework.stereotype.Component;
 public class GrpcClientCommandLineParser {
 
     public static final int DEFAULT_NUM_ITERATIONS = 1;
+    public static final int DEFAULT_NUM_THREADS = 10;
     public static final boolean DEFAULT_EXECUTE_ASYNC = false;
+    public static final int DEFAULT_ITERATION_DELAY = 0;
 
     private int numIterations = DEFAULT_NUM_ITERATIONS;
+    private int iterationDelay = DEFAULT_ITERATION_DELAY;
+    private int numThreads = DEFAULT_NUM_THREADS;
     private boolean executeAsync = DEFAULT_EXECUTE_ASYNC;
+    private GrpcTestOperation testOperation = GrpcTestOperation.NORMAL_CLIENT_EXECUTION;
 
 //========================================
 // Getters and Setters
@@ -54,8 +59,20 @@ public class GrpcClientCommandLineParser {
         return numIterations;
     }
 
+    public int getIterationDelay() {
+        return iterationDelay;
+    }
+
+    public int getNumThreads() {
+        return numThreads;
+    }
+
     public boolean isExecuteAsync() {
         return executeAsync;
+    }
+
+    public GrpcTestOperation getTestOperation() {
+        return testOperation;
     }
 
 //========================================
@@ -82,6 +99,9 @@ public class GrpcClientCommandLineParser {
 
     private void prepareOptions(Options options) {
         options.addOption(
+                new Option("d", "iteration-delay", true, "Amount of delay between iterations, in milliseconds")
+        );
+        options.addOption(
                 new Option("n", "num-iteration", true, "Number of iterations to execute")
         );
         options.addOption(
@@ -90,13 +110,26 @@ public class GrpcClientCommandLineParser {
         options.addOption(
                 new Option("s", "sync", false, "Execute operations synchronously")
         );
+        options.addOption(
+                new Option("t", "num-thread", true, "Number of threads to use (-x)")
+        );
+        options.addOption(
+                new Option("x", "spam-channel-get-state", false, "Operate by spamming the channel getState call")
+        );
     }
 
     private void processCommandLine(CommandLine commandLine) {
+        String textValue;
+
         for (Option oneOption : commandLine.getOptions()) {
             switch (oneOption.getOpt()) {
+                case "d":
+                    textValue = oneOption.getValue();
+                    this.iterationDelay = Integer.parseInt(textValue);
+                    break;
+
                 case "n":
-                    String textValue = commandLine.getOptionValue("n");
+                    textValue = oneOption.getValue();
                     this.numIterations = Integer.parseInt(textValue);
                     break;
 
@@ -106,6 +139,15 @@ public class GrpcClientCommandLineParser {
 
                 case "s":
                     this.executeAsync = false;
+                    break;
+
+                case "t":
+                    textValue = oneOption.getValue();
+                    this.numThreads = Integer.parseInt(textValue);
+                    break;
+
+                case "x":
+                    this.testOperation = GrpcTestOperation.SPAM_CHANNEL_GET_STATE;
                     break;
             }
         }

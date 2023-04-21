@@ -29,14 +29,22 @@
 
 package org.opennms.poc.hs1384;
 
+import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
 import org.opennms.poc.hs1384.grpc.TestRequest;
 import org.opennms.poc.hs1384.grpc.TestResponse;
 import org.opennms.poc.hs1384.grpc.TestServiceGrpc;
 import org.springframework.stereotype.Component;
 
+// import java.util.concurrent.ScheduledExecutorService;
+// import java.util.concurrent.ScheduledThreadPoolExecutor;
+// import java.util.concurrent.TimeUnit;
+
 @Component
 public class TestService extends TestServiceGrpc.TestServiceImplBase {
+
+    // private ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(10);
+
     @Override
     public void request(TestRequest request, StreamObserver<TestResponse> responseObserver) {
         TestResponse testResponse = TestResponse.newBuilder().setResponse("RESPONSE TO " + request.getQuery()).build();
@@ -44,4 +52,18 @@ public class TestService extends TestServiceGrpc.TestServiceImplBase {
         responseObserver.onNext(testResponse);
         responseObserver.onCompleted();
     }
+
+    @Override
+    public StreamObserver<TestRequest> minionToCloudMessages(StreamObserver<Empty> responseObserver) {
+        // this.scheduledExecutorService.scheduleAtFixedRate(() -> this.sendPeriodicPing(responseObserver), 1_000, 1_000, TimeUnit.MILLISECONDS);
+        return new LoggingStreamObserver<TestRequest>("MINION-TO-CLOUD");
+    }
+
+//========================================
+// Internals
+//----------------------------------------
+
+    // private void sendPeriodicPing() {
+    //
+    // }
 }
