@@ -101,6 +101,8 @@ public class GrpcClientCommandLineRunner {
         while (cur < this.grpcClientCommandLineParser.getNumIterations()) {
             cur++;
 
+            LOG.info("ITERATION {}", cur);
+
             if (this.grpcClientCommandLineParser.isExecuteAsync()) {
                 executeClientAsync(cur);
             } else {
@@ -186,10 +188,12 @@ public class GrpcClientCommandLineRunner {
     }
 
     private void executeClient(int iteration) {
+        LOG.info("CLIENT EXECUTION - STARTING");
         serviceStub.request(
                 TestRequest.newBuilder().setQuery("test-query #" + iteration).build(),
                 this.loggingStreamObserver
         );
+        LOG.info("CLIENT EXECUTION - COMPLETED");
     }
 
     private void setupMinionToCloudStream() {
