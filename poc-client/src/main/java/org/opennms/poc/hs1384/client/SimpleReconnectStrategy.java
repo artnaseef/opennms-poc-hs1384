@@ -15,18 +15,20 @@ public class SimpleReconnectStrategy implements Runnable, ReconnectStrategy {
     private final ManagedChannel channel;
     private final Runnable onConnect;
     private final Runnable onDisconnect;
+    private final int rate;
     private ScheduledFuture<?> reconnectTask;
 
-    public SimpleReconnectStrategy(ManagedChannel channel, Runnable onConnect, Runnable onDisconnect) {
+    public SimpleReconnectStrategy(ManagedChannel channel, Runnable onConnect, Runnable onDisconnect, int rate) {
         this.channel = channel;
         this.onConnect = onConnect;
         this.onDisconnect = onDisconnect;
+        this.rate = rate;
     }
 
     @Override
     public void activate() {
         onDisconnect.run();
-        reconnectTask = executor.scheduleAtFixedRate(this, 250, 250, TimeUnit.MILLISECONDS);
+        reconnectTask = executor.scheduleAtFixedRate(this, rate, rate, TimeUnit.MILLISECONDS);
     }
 
     @Override

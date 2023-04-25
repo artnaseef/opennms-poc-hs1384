@@ -29,8 +29,12 @@
 
 package org.opennms.poc.hs1384.client;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.internal.AbstractManagedChannelImplBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.okhttp.OkHttpChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.opennms.poc.hs1384.client.cli.GrpcClientCommandLineParser;
 import org.opennms.poc.hs1384.grpc.TestRequest;
@@ -46,6 +50,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
@@ -66,7 +71,7 @@ public class GrpcClientCommandLineRunner {
     private TestServiceGrpc.TestServiceStub serviceStub;
     private LoggingStreamObserver<TestResponse> loggingStreamObserver = new LoggingStreamObserver("test-response");
     private SimpleReconnectStrategy simpleReconnectStrategy;
-    private ExecutorService executorService = Executors.newFixedThreadPool(3);
+    private ExecutorService executorService = Executors.newFixedThreadPool(3, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("client-exec-%d").build());
     private StreamObserver<TestRequest> minionToCloudStream;
 
     private AtomicInteger channelGetStateConcurrentCallCount = new AtomicInteger(0);
@@ -78,9 +83,13 @@ public class GrpcClientCommandLineRunner {
 
     public void run(String... args) {
         try {
-            setup();
-
             this.grpcClientCommandLineParser.parseCommandLine(args);
+
+            if (this.grpcClientCommandLineParser.isUseNetty()) {
+                setupNetty();
+            } else {
+                setupOkHttp();
+            }
 
             switch (this.grpcClientCommandLineParser.getTestOperation()) {
                 case NORMAL_CLIENT_EXECUTION -> this.executeNormalClient();
@@ -114,8 +123,12 @@ public class GrpcClientCommandLineRunner {
             }
         }
 
-        LOG.info("Client execution complete; waiting 10 seconds before shutdown");
-        delay(10_000);
+        int shutdownDelay = grpcClientCommandLineParser.getShutdownDelay();
+        LOG.info("WAITING: Client execution complete; waiting {} seconds before shutdown", ((double)shutdownDelay) / 1_000.0);
+        delay(shutdownDelay);
+        LOG.info("SHUTDOWN: Client execution complete and {}s delay complete", ((double)shutdownDelay) / 1_000.0);
+
+        System.exit(0);
     }
 
     private void spamChannelGetState() {
@@ -162,14 +175,34 @@ public class GrpcClientCommandLineRunner {
 // Internals
 //----------------------------------------
 
-    private void setup() throws IOException {
+    private void setupNetty() {
         NettyChannelBuilder channelBuilder = NettyChannelBuilder.forAddress(grpcHost, grpcPort)
+                .keepAliveWithoutCalls(true)
+                // .disableRetry()
+                .idleTimeout(1_000, TimeUnit.MILLISECONDS)
+                .maxInboundMessageSize(1_000_000);
+
+        commonChannelSetup(channelBuilder);
+    }
+
+    private void setupOkHttp() {
+        OkHttpChannelBuilder channelBuilder = OkHttpChannelBuilder.forAddress(grpcHost, grpcPort)
                 .keepAliveWithoutCalls(true)
                 .maxInboundMessageSize(1_000_000);
 
+
+        commonChannelSetup(channelBuilder);
+    }
+
+    private void commonChannelSetup(ManagedChannelBuilder channelBuilder) {
         channel = channelBuilder.usePlaintext().build();
-        simpleReconnectStrategy = new SimpleReconnectStrategy(channel, this::handleConnect, this::handleDisconnect);
-        simpleReconnectStrategy.activate();
+
+        if (grpcClientCommandLineParser.isEnableReconnectStrategy()) {
+            LOG.info("STARTING RECONNECT STRATEGY");
+            int reconnectRate = grpcClientCommandLineParser.getReconnectRate();
+            simpleReconnectStrategy = new SimpleReconnectStrategy(channel, this::handleConnect, this::handleDisconnect, reconnectRate);
+            simpleReconnectStrategy.activate();
+        }
 
         serviceStub = TestServiceGrpc.newStub(channel);
     }

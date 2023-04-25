@@ -44,11 +44,20 @@ public class GrpcClientCommandLineParser {
     public static final int DEFAULT_NUM_THREADS = 10;
     public static final boolean DEFAULT_EXECUTE_ASYNC = false;
     public static final int DEFAULT_ITERATION_DELAY = 0;
+    public static final boolean DEFAULT_ENABLE_RECONNECT_STRATEGY = false;
+    public static final int DEFAULT_RECONNECT_RATE = 250;
+    public static final int DEFAULT_SHUTDOWN_DELAY = 10_000;
+    public static final boolean DEFAULT_USE_NETTY = true;
 
     private int numIterations = DEFAULT_NUM_ITERATIONS;
     private int iterationDelay = DEFAULT_ITERATION_DELAY;
     private int numThreads = DEFAULT_NUM_THREADS;
     private boolean executeAsync = DEFAULT_EXECUTE_ASYNC;
+    private boolean enableReconnectStrategy = DEFAULT_ENABLE_RECONNECT_STRATEGY;
+    private int reconnectRate = DEFAULT_RECONNECT_RATE;
+    private int shutdownDelay = DEFAULT_SHUTDOWN_DELAY;
+    private boolean useNetty = DEFAULT_USE_NETTY;
+
     private GrpcTestOperation testOperation = GrpcTestOperation.NORMAL_CLIENT_EXECUTION;
 
 //========================================
@@ -69,6 +78,22 @@ public class GrpcClientCommandLineParser {
 
     public boolean isExecuteAsync() {
         return executeAsync;
+    }
+
+    public boolean isEnableReconnectStrategy() {
+        return enableReconnectStrategy;
+    }
+
+    public int getReconnectRate() {
+        return reconnectRate;
+    }
+
+    public int getShutdownDelay() {
+        return shutdownDelay;
+    }
+
+    public boolean isUseNetty() {
+        return useNetty;
     }
 
     public GrpcTestOperation getTestOperation() {
@@ -108,6 +133,21 @@ public class GrpcClientCommandLineParser {
                 new Option("a", "async", false, "Execute operations asynchronously")
         );
         options.addOption(
+                new Option("N", "netty-http", false, "Use Netty Http client implementation")
+        );
+        options.addOption(
+                new Option("O", "ok-http", false, "Use OK Http client implementation instead of netty")
+        );
+        options.addOption(
+                new Option("r", "enable-reconnect-strategy", true, "Enable/disable the reconnect strategy")
+        );
+        options.addOption(
+                new Option("R", "reconnect-rate", true, "Set the reconnect rate (ms)")
+        );
+        options.addOption(
+                new Option("S", "shutdown-delay", true, "Shutdown delay: amount of time, in ms, to wait before shutting down (not -x)")
+        );
+        options.addOption(
                 new Option("s", "sync", false, "Execute operations synchronously")
         );
         options.addOption(
@@ -125,16 +165,36 @@ public class GrpcClientCommandLineParser {
             switch (oneOption.getOpt()) {
                 case "d":
                     textValue = oneOption.getValue();
-                    this.iterationDelay = Integer.parseInt(textValue);
+                    this.iterationDelay = parseIntWithOptionalUnderscoresCommas(textValue);
+                    break;
+
+                case "N":
+                    useNetty = true;
+                    break;
+
+                case "O":
+                    useNetty = false;
                     break;
 
                 case "n":
                     textValue = oneOption.getValue();
-                    this.numIterations = Integer.parseInt(textValue);
+                    this.numIterations = parseIntWithOptionalUnderscoresCommas(textValue);
                     break;
 
                 case "a":
                     this.executeAsync = true;
+                    break;
+
+                case "R":
+                    this.reconnectRate = parseIntWithOptionalUnderscoresCommas(oneOption.getValue());
+                    break;
+
+                case "r":
+                    this.enableReconnectStrategy = Boolean.parseBoolean(oneOption.getValue());
+                    break;
+
+                case "S":
+                    this.shutdownDelay = parseIntWithOptionalUnderscoresCommas(oneOption.getValue());
                     break;
 
                 case "s":
@@ -143,7 +203,7 @@ public class GrpcClientCommandLineParser {
 
                 case "t":
                     textValue = oneOption.getValue();
-                    this.numThreads = Integer.parseInt(textValue);
+                    this.numThreads = parseIntWithOptionalUnderscoresCommas(textValue);
                     break;
 
                 case "x":
@@ -151,6 +211,12 @@ public class GrpcClientCommandLineParser {
                     break;
             }
         }
+    }
+
+    private int parseIntWithOptionalUnderscoresCommas(String text) {
+        String noUnderscores = text.replaceAll("[_,]", "");
+
+        return Integer.parseInt(noUnderscores);
     }
 
     private void showUsage(Options options) {
