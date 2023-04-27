@@ -7,18 +7,21 @@ POC for HS-1384: GRPC connections from Minion periodically jump up to 100+ then 
 
 The OpenNMS Horizon Stream project is using GRPC for Minions to connect to the cloud as follows:
 
-* Connections are long-lived
-* The cloud may spuriously push messages to the Minions
+* Connections are long-lived and communication needs to be resilient to failures (middleboxes, network hiccups, etc.)
+* The cloud will send messages to the Minion at any time; the Minion cannot predict the timing reliably
 * Minions commonly send periodic messages to the cloud
 * Minions must initiate the connections - the cloud cannot reach out to Minions to initiate the connection
-* Minions need to make their best effort to stay connected to the cloud even when there are messages to send to the cloud
+* Minions need to make their best effort to stay connected to the cloud even when there are no messages to send to the cloud
   * At any time, the cloud may be waiting for the Minion to reconnect in order to push messages to the Minion
+* Either party may initiate message sends to the other at any time
 
 Below is the solution:
 
 * Minions initiate GRPC connections to the cloud at startup
 * A reconnect strategy attempts to force reconnect attempts when the underlying connection is down
 * GRPC streams are used to support pushes in both directions
+* The cloud periodically sends ping messages to the Minion
+* The Minion periodically sends heartbeat messages to the cloud
 
 The cloud is running in Kubernetes - all local testing is done with `kind`.
 An ingress NGINX controller is proxying the GRPC connections to a custom gateway service.
