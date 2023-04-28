@@ -57,6 +57,7 @@ History of problems:
 	1. Netty with reconnect strategy periodically calling channel.getState(true)
 	2. Netty long run (connection lingers after failure)
 	3. OK HTTP long run
+    4. Netty with multiple connections and no GRPC requests initiated
 
 
 # GENERAL RUN AGAINST CTF (Connect-Then-Fail)
@@ -80,7 +81,7 @@ History of problems:
   * Every call to `getState(true)` creates a new connection (when the channel is in IDLE state)
   * Connections are never cleaned up by the client until the underlying socket is closed externally (i.e. by the O/S or server)
 	
-	# Start the client
+## Start the client
 	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=true --shutdown-delay=10_000
 
 
@@ -91,17 +92,33 @@ History of problems:
 * FINDINGS
   * One connection is created and remains connected indefinitely (until the 2 hour test terminates)
 
-  * # Start the client
+## Start the client
 	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=false --shutdown-delay=7200_000
 
 
 # SCENARIO 3 - OK Http long run
 
 * NOTES
+  * Instructions here are for the client only; see the "GENERAL RUN AGAINST CTF" section above
 * FINDINGS
   * The one connection is created and then cleaned up as expected
 * CAVEATS
   * While this is promising, separate testing has shown problems still arise - the difference in conditions causing the problems is as-yet unknown
-
-  * # Start the client
+  
+## Start the client
 	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=false --shutdown-delay=7200_000 --ok-http
+
+
+# SCENARIO 4 - Netty with multiple connections and no GRPC requests initiated
+
+* NOTES
+  * Instructions here are for the client only; see the "GENERAL RUN AGAINST CTF" section above
+  * The client does not make any calls to the GRPC service
+  * The client's reconnect strategy makes multiple calls to `getState(true)`
+    * Each call creates a connection
+  * The client connections are never removed
+* FINDINGS
+  * Connections leak
+
+## Start the client
+	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=true --shutdown-delay=7200_000 --netty-http --num-iteration=0 --reconnect-rate=1_000 --max-reconnect-attempts=3 

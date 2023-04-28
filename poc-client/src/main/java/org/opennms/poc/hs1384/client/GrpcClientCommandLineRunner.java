@@ -200,7 +200,17 @@ public class GrpcClientCommandLineRunner {
         if (grpcClientCommandLineParser.isEnableReconnectStrategy()) {
             LOG.info("STARTING RECONNECT STRATEGY");
             int reconnectRate = grpcClientCommandLineParser.getReconnectRate();
-            simpleReconnectStrategy = new SimpleReconnectStrategy(channel, this::handleConnect, this::handleDisconnect, reconnectRate);
+            int maxReconnectAttempts = grpcClientCommandLineParser.getMaxReconnectAttempts();
+
+            simpleReconnectStrategy =
+                    new SimpleReconnectStrategy(
+                            channel,
+                            this::handleConnect,
+                            this::handleDisconnect,
+                            reconnectRate,
+                            maxReconnectAttempts
+                    );
+
             simpleReconnectStrategy.activate();
         }
 

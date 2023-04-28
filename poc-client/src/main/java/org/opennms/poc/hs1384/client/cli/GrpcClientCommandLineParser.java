@@ -57,6 +57,7 @@ public class GrpcClientCommandLineParser {
     private int reconnectRate = DEFAULT_RECONNECT_RATE;
     private int shutdownDelay = DEFAULT_SHUTDOWN_DELAY;
     private boolean useNetty = DEFAULT_USE_NETTY;
+    private int maxReconnectAttempts = -1;
 
     private GrpcTestOperation testOperation = GrpcTestOperation.NORMAL_CLIENT_EXECUTION;
 
@@ -96,6 +97,10 @@ public class GrpcClientCommandLineParser {
         return useNetty;
     }
 
+    public int getMaxReconnectAttempts() {
+        return maxReconnectAttempts;
+    }
+
     public GrpcTestOperation getTestOperation() {
         return testOperation;
     }
@@ -133,6 +138,9 @@ public class GrpcClientCommandLineParser {
                 new Option("a", "async", false, "Execute operations asynchronously")
         );
         options.addOption(
+                new Option("m", "max-reconnect-attempts", true, "Set the maximum number or reconnect attempts for the reconnect strategy (-1 = unlimited)")
+        );
+        options.addOption(
                 new Option("N", "netty-http", false, "Use Netty Http client implementation")
         );
         options.addOption(
@@ -166,6 +174,11 @@ public class GrpcClientCommandLineParser {
                 case "d":
                     textValue = oneOption.getValue();
                     this.iterationDelay = parseIntWithOptionalUnderscoresCommas(textValue);
+                    break;
+
+                case "m":
+                    textValue = oneOption.getValue();
+                    this.maxReconnectAttempts = parseIntWithOptionalUnderscoresCommas(textValue);
                     break;
 
                 case "N":
