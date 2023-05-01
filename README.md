@@ -57,7 +57,8 @@ History of problems:
 	1. Netty with reconnect strategy periodically calling channel.getState(true)
 	2. Netty long run (connection lingers after failure)
 	3. OK HTTP long run
-    4. Netty with multiple connections and no GRPC requests initiated
+	4. Netty with multiple connections and no GRPC requests initiated
+	5. Netty with multiple connections without using getState(true)
 
 
 # GENERAL RUN AGAINST CTF (Connect-Then-Fail)
@@ -122,3 +123,18 @@ History of problems:
 
 ## Start the client
 	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=true --shutdown-delay=7200_000 --netty-http --num-iteration=0 --reconnect-rate=1_000 --max-reconnect-attempts=3 
+
+
+# SCENARIO 5 - Netty with multiple connections without using getState(true)
+
+* NOTES
+  * Instructions here are for the client only; see the "GENERAL RUN AGAINST CTF" section above
+  * The client makes multiple attempted calls to the GRPC service
+  * Excludes calls to `getState(true)`
+  * The client connections are never removed
+* FINDINGS
+  * Connections leak
+
+## Start the client
+	$ java -Dgrpc.port=9991 -jar poc-client/target/POC-HS-1384-client-1.0.0-SNAPSHOT.jar --enable-reconnect-strategy=false --shutdown-delay=60_000 --num-iteration=5 --iteration-delay=1_000 
+
